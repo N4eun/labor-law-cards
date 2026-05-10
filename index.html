@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#1F6E3A">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="googlebot" content="noindex, nofollow">
 <title>노동법</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -360,9 +362,90 @@ mark {
     padding: 0 2px;
     border-radius: 2px;
 }
+
+/* 비밀번호 입력 화면 */
+.auth-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 9999;
+}
+.auth-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    letter-spacing: -0.8px;
+    color: var(--text);
+}
+.auth-subtitle {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 32px;
+    text-align: center;
+}
+.auth-input {
+    width: 100%;
+    max-width: 280px;
+    height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    font-size: 14px;
+    font-family: 'Pretendard', sans-serif;
+    background: var(--bg-card);
+    color: var(--text);
+    outline: none;
+    text-align: center;
+    margin-bottom: 12px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.auth-input:focus {
+    border-color: var(--key-color);
+    box-shadow: 0 0 0 3px var(--key-color-light);
+}
+.auth-button {
+    width: 100%;
+    max-width: 280px;
+    height: 42px;
+    background: var(--key-color);
+    color: white;
+    border: none;
+    border-radius: 21px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Pretendard', sans-serif;
+    transition: opacity 0.15s;
+}
+.auth-button:hover { opacity: 0.9; }
+.auth-error {
+    color: #d33;
+    font-size: 12px;
+    margin-top: 14px;
+    min-height: 16px;
+    font-weight: 500;
+}
+@media (prefers-color-scheme: dark) {
+    .auth-error { color: #ff6b6b; }
+}
+.main-app { display: none; }
+.main-app.visible { display: block; }
 </style>
 </head>
 <body>
+<div class="auth-overlay" id="auth-overlay">
+    <h1 class="auth-title">노동법</h1>
+    <div class="auth-subtitle">비밀번호를 입력하세요</div>
+    <input type="password" class="auth-input" id="auth-input" autocomplete="off" inputmode="text">
+    <button class="auth-button" id="auth-button">확인</button>
+    <div class="auth-error" id="auth-error"></div>
+</div>
+<div class="main-app" id="main-app">
 <div class="header">
     <h1 class="title">노동법</h1>
     <div class="search-wrap">
@@ -379,9 +462,12 @@ mark {
         <div>구글시트에서 최신 내용을 가져옵니다</div>
     </div>
 </div>
+</div>
 
 <script>
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRKyRSZJYosu1vVvPho5gE_nJedKergI2nALXhUx7YsRu7w4sT7SGfFt93BboQYc_1vdioMawmj5QUY/pub?gid=2111615212&single=true&output=csv';
+const SITE_PASSWORD = 'nodong0511';
+const AUTH_KEY = 'nodong_auth_pwd';
 let allData = [];
 let activeChapter = '전체';
 let searchQuery = '';
@@ -671,7 +757,43 @@ document.getElementById('clear').addEventListener('click', () => {
     input.focus();
 });
 
-loadData();
+// === 비밀번호 인증 ===
+function unlockApp() {
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('main-app').classList.add('visible');
+    loadData();
+}
+
+function tryAuth() {
+    const input = document.getElementById('auth-input');
+    const errorEl = document.getElementById('auth-error');
+    const value = input.value;
+    if (value === SITE_PASSWORD) {
+        try { localStorage.setItem(AUTH_KEY, value); } catch (e) {}
+        unlockApp();
+    } else {
+        errorEl.textContent = '비밀번호가 틀렸습니다';
+        input.value = '';
+        input.focus();
+    }
+}
+
+// 시작: localStorage에 저장된 비번이 현재 비번과 일치하면 자동 통과
+let savedPwd = '';
+try { savedPwd = localStorage.getItem(AUTH_KEY) || ''; } catch (e) {}
+if (savedPwd === SITE_PASSWORD) {
+    unlockApp();
+} else {
+    // 인증 화면 활성화
+    const authInput = document.getElementById('auth-input');
+    const authButton = document.getElementById('auth-button');
+    authButton.addEventListener('click', tryAuth);
+    authInput.addEventListener('keypress', e => {
+        if (e.key === 'Enter') tryAuth();
+    });
+    // 모바일에서 자동 포커스
+    setTimeout(() => authInput.focus(), 100);
+}
 </script>
 </body>
 </html>

@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1F6E3A">
+<title>노동법</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+:root {
+    --bg: #fbfaf6;
+    --bg-card: #ffffff;
+    --bg-pressed: #f7faf8;
+    --text: #1a1a1a;
+    --text-secondary: #6b6b6b;
+    --text-tertiary: #999;
+    --border: #ece7dd;
+    --border-light: #f0ebe0;
+    --key-color: #1F6E3A;
+    --key-color-light: #E8F1EC;
+    --key-color-tint: #d9e8df;
+    --highlight: #fff39e;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #131311;
+        --bg-card: #1d1c19;
+        --bg-pressed: #1a201d;
+        --text: #f0eee8;
+        --text-secondary: #a8a59c;
+        --text-tertiary: #6e6c63;
+        --border: #2e2c27;
+        --border-light: #2a2925;
+        --key-color: #4ea672;
+        --key-color-light: #1f3a28;
+        --key-color-tint: #243d2c;
+        --highlight: #4a4117;
+    }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+    padding-bottom: 60px;
+}
+
+/* 헤더 (sticky, 한 줄) */
+.header {
+    background: var(--bg-card);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.6px;
+    color: var(--text);
+    flex-shrink: 0;
+}
+.search-wrap {
+    position: relative;
+    flex: 1;
+    max-width: 220px;
+}
+.search-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary);
+    font-size: 12px;
+    pointer-events: none;
+    line-height: 1;
+}
+.search-input {
+    width: 100%;
+    height: 32px;
+    padding: 0 28px 0 30px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    font-size: 13px;
+    font-family: 'Pretendard', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.search-input:focus {
+    border-color: var(--key-color);
+    box-shadow: 0 0 0 2px var(--key-color-light);
+}
+.search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 4px;
+    display: none;
+    line-height: 1;
+}
+.search-input.has-value ~ .search-clear { display: block; }
+
+/* 필터 칩 (비-sticky) */
+.filter-chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 12px 14px 6px;
+    scrollbar-width: none;
+}
+.filter-chips::-webkit-scrollbar { display: none; }
+.chip {
+    background: var(--bg-card);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s;
+}
+.chip.active {
+    background: var(--key-color);
+    color: white;
+    border-color: var(--key-color);
+    box-shadow: 0 2px 6px rgba(31,110,58,0.25);
+}
+
+/* 본문 영역 */
+.content-area { padding: 0 12px 24px; }
+
+/* 챕터 라벨 */
+.chapter-label {
+    padding: 16px 6px 8px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+.chapter-name {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0.4px;
+    color: var(--text);
+    text-transform: uppercase;
+}
+.chapter-meta {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.5px;
+}
+
+/* 구분 카드 */
+.division {
+    background: var(--bg-card);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    border: 1px solid var(--border-light);
+    margin-bottom: 8px;
+    overflow: hidden;
+    position: relative;
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+.division:not(.collapsed) {
+    box-shadow: 0 6px 16px rgba(31,110,58,0.08);
+    border-color: var(--key-color-tint);
+}
+.division::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--key-color);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.division:not(.collapsed)::before { opacity: 1; }
+.division-head {
+    padding: 13px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    gap: 8px;
+}
+.division-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 1px;
+    letter-spacing: -0.2px;
+}
+.division-count {
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+.division-arrow {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    transition: transform 0.2s, color 0.2s;
+    flex-shrink: 0;
+}
+.division:not(.collapsed) .division-arrow {
+    color: var(--key-color);
+    transform: rotate(90deg);
+}
+
+/* 쟁점 */
+.issues { display: block; }
+.division.collapsed .issues { display: none; }
+.issue { border-top: 1px solid var(--border-light); }
+.issue-head {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    gap: 10px;
+}
+.issue-no {
+    background: var(--key-color);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    width: 19px;
+    height: 19px;
+    min-width: 19px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.issue-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+.issue-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+}
+.issue.expanded .issue-title { font-weight: 600; }
+.issue-arrow {
+    color: var(--text-tertiary);
+    font-size: 11px;
+    flex-shrink: 0;
+}
+.issue.expanded .issue-arrow { color: var(--key-color); }
+
+.issue-body {
+    padding: 0 16px 16px 45px;
+    display: none;
+    background: linear-gradient(180deg, var(--bg-pressed) 0%, transparent 100%);
+}
+.issue.expanded .issue-body { display: block; }
+
+.mnemonic {
+    display: inline-block;
+    background: var(--key-color-light);
+    color: var(--key-color);
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--key-color);
+    margin-bottom: 10px;
+    letter-spacing: 0.2px;
+    line-height: 1.4;
+}
+.content {
+    font-size: 13.5px;
+    line-height: 1.8;
+    color: var(--text);
+}
+.content b { font-weight: 700; }
+.content u {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* 상태 (로딩, 에러, 빈) */
+.state {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.state-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    display: block;
+}
+.state-title {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 15px;
+    margin-bottom: 6px;
+}
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border);
+    border-top-color: var(--key-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 14px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+mark {
+    background: var(--highlight);
+    color: var(--text);
+    padding: 0 2px;
+    border-radius: 2px;
+}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1 class="title">노동법</h1>
+    <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search" class="search-input" placeholder="검색" autocomplete="off">
+        <button class="search-clear" id="clear" aria-label="검색 지우기">✕</button>
+    </div>
+</div>
+<div class="filter-chips" id="chips"></div>
+<div class="content-area" id="content">
+    <div class="state">
+        <div class="spinner"></div>
+        <div class="state-title">데이터 불러오는 중</div>
+        <div>구글시트에서 최신 내용을 가져옵니다</div>
+    </div>
+</div>
+
+<script>
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRKyRSZJYosu1vVvPho5gE_nJedKergI2nALXhUx7YsRu7w4sT7SGfFt93BboQYc_1vdioMawmj5QUY/pub?gid=2111615212&single=true&output=csv';
+let allData = [];
+let activeChapter = '전체';
+let searchQuery = '';
+
+function markdownToHtml(text) {
+    if (!text) return '';
+    let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html = html.replace(/\*\*__([\s\S]+?)__\*\*/g, '<b><u>$1</u></b>');
+    html = html.replace(/__\*\*([\s\S]+?)\*\*__/g, '<b><u>$1</u></b>');
+    html = html.replace(/\*\*([\s\S]+?)\*\*/g, '<b>$1</b>');
+    html = html.replace(/__([\s\S]+?)__/g, '<u>$1</u>');
+    html = html.replace(/\n/g, '<br>');
+    return html;
+}
+
+function stripMarkdown(text) {
+    if (!text) return '';
+    return text.replace(/\*\*/g, '').replace(/__/g, '');
+}
+
+const norm = s => (s || '').toLowerCase().replace(/\s+/g, '');
+
+function escapeHtml(s) {
+    return (s || '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+}
+
+function processData(rows) {
+    if (rows.length < 1) return [];
+    // 컬럼 위치 기반: [0]=CHAPTER, [1]=구분, [2]=쟁점, [3]=두문자, [4]=내용
+    let lastChapter = '';
+    let lastDivision = '';
+    const filled = rows.map(r => {
+        const chapter = (r[0] || '').trim() || lastChapter;
+        const division = (r[1] || '').trim() || lastDivision;
+        if ((r[0] || '').trim()) lastChapter = chapter;
+        if ((r[1] || '').trim()) lastDivision = division;
+        return {
+            chapter,
+            division,
+            issue: (r[2] || '').trim(),
+            mnemonic: (r[3] || '').trim(),
+            content: r[4] || ''
+        };
+    });
+
+    // 빈 쟁점은 위 쟁점에 합치기
+    const merged = [];
+    filled.forEach(row => {
+        if (!row.content && !row.issue && !row.mnemonic) return;
+        if (!row.issue && merged.length > 0) {
+            const last = merged[merged.length - 1];
+            if (last.chapter === row.chapter && last.division === row.division) {
+                last.content = (last.content || '') + '\n\n' + (row.content || '');
+                return;
+            }
+        }
+        merged.push({ ...row });
+    });
+
+    // (chapter, division) 그룹화
+    const map = new Map();
+    const order = [];
+    merged.forEach(row => {
+        const key = row.chapter + '|' + row.division;
+        if (!map.has(key)) {
+            map.set(key, {
+                chapter: row.chapter,
+                division: row.division,
+                issues: []
+            });
+            order.push(key);
+        }
+        map.get(key).issues.push({
+            issue: row.issue,
+            mnemonic: row.mnemonic,
+            content: row.content,
+            content_html: markdownToHtml(row.content),
+            search_text: stripMarkdown(row.content)
+        });
+    });
+
+    return order.map(k => map.get(k));
+}
+
+function highlightHtml(html, query) {
+    if (!query) return html;
+    const queryNorm = norm(query);
+    if (!queryNorm) return html;
+    const tokens = html.split(/(<[^>]+>)/);
+    return tokens.map(token => {
+        if (token.startsWith('<')) return token;
+        const tokenNorm = norm(token);
+        if (!tokenNorm.includes(queryNorm)) return token;
+        let result = '';
+        let i = 0;
+        while (i < token.length) {
+            const remaining = token.slice(i);
+            const remainingNorm = norm(remaining);
+            if (remainingNorm.startsWith(queryNorm)) {
+                let consumed = 0;
+                const charsNeeded = queryNorm.length;
+                let matched = false;
+                for (let j = 0; j < remaining.length && consumed < charsNeeded; j++) {
+                    if (!/\s/.test(remaining[j])) consumed++;
+                    if (consumed === charsNeeded) {
+                        result += '<mark>' + remaining.slice(0, j+1) + '</mark>';
+                        i += j + 1;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) { result += token[i]; i++; }
+            } else {
+                result += token[i];
+                i++;
+            }
+        }
+        return result;
+    }).join('');
+}
+
+function highlightText(text, query) {
+    if (!query || !text) return escapeHtml(text);
+    return highlightHtml(escapeHtml(text), query);
+}
+
+function renderChips() {
+    const chips = document.getElementById('chips');
+    const order = [];
+    const seen = new Set();
+    allData.forEach(c => {
+        if (!seen.has(c.chapter)) {
+            seen.add(c.chapter);
+            order.push(c.chapter);
+        }
+    });
+    chips.innerHTML = '<span class="chip active" data-ch="전체">전체</span>' +
+        order.map(ch => '<span class="chip" data-ch="' + escapeHtml(ch) + '">' + escapeHtml(ch) + '</span>').join('');
+    chips.addEventListener('click', e => {
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        chips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        activeChapter = chip.dataset.ch;
+        renderContent();
+    });
+}
+
+function matchIssue(issue, queryNorm) {
+    return norm(issue.issue).includes(queryNorm) ||
+           norm(issue.mnemonic).includes(queryNorm) ||
+           norm(issue.search_text).includes(queryNorm);
+}
+
+function renderContent() {
+    const content = document.getElementById('content');
+    const queryNorm = norm(searchQuery);
+    const isSearching = queryNorm.length > 0;
+
+    let filtered = allData;
+    if (activeChapter !== '전체') {
+        filtered = filtered.filter(c => c.chapter === activeChapter);
+    }
+    if (isSearching) {
+        filtered = filtered.map(card => {
+            const matched = card.issues.filter(i => matchIssue(i, queryNorm));
+            if (matched.length === 0) return null;
+            return Object.assign({}, card, { issues: matched });
+        }).filter(c => c !== null);
+    }
+
+    // 챕터 인덱스 미리 계산
+    const chapterIndex = {};
+    let idx = 0;
+    allData.forEach(c => {
+        if (chapterIndex[c.chapter] === undefined) {
+            idx++;
+            chapterIndex[c.chapter] = idx;
+        }
+    });
+
+    // 그룹화 (이전 카드와 다른 챕터일 때만 라벨 표시)
+    let html = '';
+    let currentChapter = null;
+    filtered.forEach(card => {
+        if (card.chapter !== currentChapter) {
+            currentChapter = card.chapter;
+            const cIdx = chapterIndex[card.chapter] || 1;
+            const totalInChapter = filtered.filter(c => c.chapter === card.chapter).length;
+            html += '<div class="chapter-label">';
+            html += '<h2 class="chapter-name">' + escapeHtml(card.chapter) + '</h2>';
+            html += '<span class="chapter-meta">CH ' + String(cIdx).padStart(2, '0') + ' · ' + totalInChapter + ' 카드</span>';
+            html += '</div>';
+        }
+        const collapsed = isSearching ? '' : 'collapsed';
+        html += '<div class="division ' + collapsed + '">';
+        html += '<div class="division-head" onclick="toggleDivision(this)">';
+        html += '<div>';
+        html += '<div class="division-name">' + highlightText(card.division, searchQuery) + '</div>';
+        html += '<div class="division-count">' + card.issues.length + '개 쟁점</div>';
+        html += '</div>';
+        html += '<span class="division-arrow">▶</span>';
+        html += '</div>';
+        html += '<div class="issues">';
+        card.issues.forEach((issue, i) => {
+            const expanded = isSearching ? 'expanded' : '';
+            html += '<div class="issue ' + expanded + '">';
+            html += '<div class="issue-head" onclick="toggleIssue(this)">';
+            html += '<div class="issue-title-wrap">';
+            html += '<span class="issue-no">' + (i+1) + '</span>';
+            html += '<span class="issue-title">' + highlightText(issue.issue || ' ', searchQuery) + '</span>';
+            html += '</div>';
+            html += '<span class="issue-arrow">▼</span>';
+            html += '</div>';
+            html += '<div class="issue-body">';
+            if (issue.mnemonic) {
+                const mnemDisplay = issue.mnemonic.replace(/\n/g, ' · ').replace(/\s+/g, ' ').trim();
+                html += '<div class="mnemonic">' + highlightText(mnemDisplay, searchQuery) + '</div>';
+            }
+            html += '<div class="content">' + highlightHtml(issue.content_html, searchQuery) + '</div>';
+            html += '</div>';
+            html += '</div>';
+        });
+        html += '</div>';
+        html += '</div>';
+    });
+
+    if (filtered.length === 0) {
+        html = '<div class="state"><span class="state-icon">🔍</span><div class="state-title">검색 결과가 없습니다</div><div>다른 키워드로 시도해보세요</div></div>';
+    }
+
+    content.innerHTML = html;
+}
+
+function toggleDivision(el) {
+    el.parentElement.classList.toggle('collapsed');
+}
+
+function toggleIssue(el) {
+    el.parentElement.classList.toggle('expanded');
+}
+
+async function loadData() {
+    try {
+        // cache-buster: 시트 수정 후 즉시 보고 싶을 때 도움
+        const url = CSV_URL + '&_t=' + Date.now();
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const csv = await res.text();
+        const result = Papa.parse(csv, { header: false, skipEmptyLines: true });
+        if (!result.data || result.data.length < 2) {
+            throw new Error('데이터가 비어있음');
+        }
+        // 첫 행은 헤더이므로 제외
+        const dataRows = result.data.slice(1);
+        allData = processData(dataRows);
+        if (allData.length === 0) {
+            throw new Error('처리된 카드 0개');
+        }
+        renderChips();
+        renderContent();
+    } catch (err) {
+        console.error('데이터 로드 실패:', err);
+        document.getElementById('content').innerHTML = '<div class="state"><span class="state-icon">⚠️</span><div class="state-title">데이터를 불러올 수 없습니다</div><div>인터넷 연결 또는 시트 게시 상태를 확인해주세요</div></div>';
+    }
+}
+
+document.getElementById('search').addEventListener('input', e => {
+    searchQuery = e.target.value;
+    e.target.classList.toggle('has-value', !!searchQuery);
+    renderContent();
+});
+document.getElementById('clear').addEventListener('click', () => {
+    const input = document.getElementById('search');
+    input.value = '';
+    input.classList.remove('has-value');
+    searchQuery = '';
+    renderContent();
+    input.focus();
+});
+
+loadData();
+</script>
+</body>
+</html>

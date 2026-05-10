@@ -286,6 +286,21 @@ body {
 }
 .issue.expanded .issue-body { display: block; }
 
+/* 쟁점이 1개일 때: issue-head 단계 스킵, 본문 자동 펼침 */
+.division.single-issue .issue-head { display: none; }
+.division.single-issue .issue { border-top: none; }
+.division.single-issue:not(.collapsed) .issue-body {
+    display: block;
+    padding: 12px 16px 16px;
+}
+.single-issue-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    letter-spacing: 0.1px;
+}
+
 .mnemonic {
     display: inline-block;
     background: var(--key-color-light);
@@ -561,12 +576,16 @@ function renderContent() {
             html += '<span class="chapter-meta">CH ' + String(cIdx).padStart(2, '0') + ' · ' + totalInChapter + ' 카드</span>';
             html += '</div>';
         }
+        const isSingleIssue = card.issues.length === 1;
         const collapsed = isSearching ? '' : 'collapsed';
-        html += '<div class="division ' + collapsed + '">';
+        const singleClass = isSingleIssue ? 'single-issue' : '';
+        html += '<div class="division ' + collapsed + ' ' + singleClass + '">';
         html += '<div class="division-head" onclick="toggleDivision(this)">';
         html += '<div>';
         html += '<div class="division-name">' + highlightText(card.division, searchQuery) + '</div>';
-        html += '<div class="division-count">' + card.issues.length + '개 쟁점</div>';
+        if (!isSingleIssue) {
+            html += '<div class="division-count">' + card.issues.length + '개 쟁점</div>';
+        }
         html += '</div>';
         html += '<span class="division-arrow">▶</span>';
         html += '</div>';
@@ -582,6 +601,10 @@ function renderContent() {
             html += '<span class="issue-arrow">▼</span>';
             html += '</div>';
             html += '<div class="issue-body">';
+            // 쟁점이 1개이면서 쟁점명이 있는 경우: 본문 위에 작게 표시
+            if (isSingleIssue && issue.issue) {
+                html += '<div class="single-issue-title">' + highlightText(issue.issue, searchQuery) + '</div>';
+            }
             if (issue.mnemonic) {
                 const mnemDisplay = issue.mnemonic.replace(/\n/g, ' · ').replace(/\s+/g, ' ').trim();
                 html += '<div class="mnemonic">' + highlightText(mnemDisplay, searchQuery) + '</div>';

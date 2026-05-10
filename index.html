@@ -219,6 +219,12 @@ body {
     user-select: none;
     gap: 8px;
 }
+.division-name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
 .division-name {
     font-size: 15px;
     font-weight: 600;
@@ -273,6 +279,7 @@ body {
     gap: 10px;
     flex: 1;
     min-width: 0;
+    flex-wrap: wrap;
 }
 .issue-title {
     font-size: 14px;
@@ -360,6 +367,33 @@ body {
 .precedent-content u {
     text-decoration: underline;
     text-underline-offset: 2px;
+}
+
+/* 두문자/판례 유무 표시 배지 */
+.badges {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    line-height: 1.2;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+.badge-mnemonic {
+    background: var(--key-color-light);
+    color: var(--key-color);
+    border: 1px solid var(--key-color);
+}
+.badge-precedent {
+    background: var(--precedent-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--precedent-border);
 }
 
 /* 상태 (로딩, 에러, 빈) */
@@ -667,6 +701,14 @@ function matchIssue(issue, queryNorm) {
            norm(issue.precedent_search).includes(queryNorm);
 }
 
+function badgesHtml(issue) {
+    const items = [];
+    if (issue.mnemonic) items.push('<span class="badge badge-mnemonic">두</span>');
+    if (issue.precedent) items.push('<span class="badge badge-precedent">판</span>');
+    if (items.length === 0) return '';
+    return '<span class="badges">' + items.join('') + '</span>';
+}
+
 function renderContent() {
     const content = document.getElementById('content');
     const queryNorm = norm(searchQuery);
@@ -712,10 +754,16 @@ function renderContent() {
         const singleClass = isSingleIssue ? 'single-issue' : '';
         html += '<div class="division ' + collapsed + ' ' + singleClass + '">';
         html += '<div class="division-head" onclick="toggleDivision(this)">';
+        html += '<div class="division-name-wrap">';
         html += '<div>';
         html += '<div class="division-name">' + highlightText(card.division, searchQuery) + '</div>';
         if (!isSingleIssue) {
             html += '<div class="division-count">' + card.issues.length + '개 쟁점</div>';
+        }
+        html += '</div>';
+        // 쟁점 1개일 때만 division 헤더에 배지 표시 (그 1개 쟁점의 두/판 유무)
+        if (isSingleIssue) {
+            html += badgesHtml(card.issues[0]);
         }
         html += '</div>';
         html += '<span class="division-arrow">▶</span>';
@@ -728,6 +776,10 @@ function renderContent() {
             html += '<div class="issue-title-wrap">';
             html += '<span class="issue-no">•</span>';
             html += '<span class="issue-title">' + highlightText(issue.issue || ' ', searchQuery) + '</span>';
+            // 쟁점이 여러 개일 때만 각 쟁점 옆에 배지 (single-issue는 division 헤더에 이미 표시)
+            if (!isSingleIssue) {
+                html += badgesHtml(issue);
+            }
             html += '</div>';
             html += '<span class="issue-arrow">▼</span>';
             html += '</div>';

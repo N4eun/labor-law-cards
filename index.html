@@ -23,6 +23,9 @@
     --key-color-light: #E8F1EC;
     --key-color-tint: #d9e8df;
     --highlight: #fff39e;
+    --precedent-bg: #f3f1ea;
+    --precedent-border: #b8b3a4;
+    --precedent-text: #4a4a4a;
 }
 @media (prefers-color-scheme: dark) {
     :root {
@@ -38,6 +41,9 @@
         --key-color-light: #1f3a28;
         --key-color-tint: #243d2c;
         --highlight: #4a4117;
+        --precedent-bg: #2a2925;
+        --precedent-border: #4a4843;
+        --precedent-text: #c8c5bd;
     }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -249,17 +255,17 @@ body {
     gap: 10px;
 }
 .issue-no {
-    background: var(--key-color);
-    color: white;
-    font-size: 10px;
+    color: var(--key-color);
+    font-size: 18px;
     font-weight: 700;
-    width: 19px;
-    height: 19px;
-    min-width: 19px;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    line-height: 1;
+    width: auto;
+    min-width: 12px;
+    height: auto;
+    background: transparent;
+    display: inline-block;
+    text-align: center;
+    flex-shrink: 0;
 }
 .issue-title-wrap {
     display: flex;
@@ -323,6 +329,35 @@ body {
 }
 .content b { font-weight: 700; }
 .content u {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* 판례 박스 */
+.precedent {
+    background: var(--precedent-bg);
+    border-left: 3px solid var(--precedent-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 12px;
+}
+.precedent-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.precedent-content {
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--precedent-text);
+}
+.precedent-content b { font-weight: 700; color: var(--text); }
+.precedent-content u {
     text-decoration: underline;
     text-underline-offset: 2px;
 }
@@ -496,7 +531,7 @@ function escapeHtml(s) {
 
 function processData(rows) {
     if (rows.length < 1) return [];
-    // 컬럼 위치 기반: [0]=CHAPTER, [1]=구분, [2]=쟁점, [3]=두문자, [4]=내용
+    // 컬럼 위치 기반: [0]=CHAPTER, [1]=구분, [2]=쟁점, [3]=두문자, [4]=내용, [5]=판례
     let lastChapter = '';
     let lastDivision = '';
     const filled = rows.map(r => {
@@ -509,18 +544,24 @@ function processData(rows) {
             division,
             issue: (r[2] || '').trim(),
             mnemonic: (r[3] || '').trim(),
-            content: r[4] || ''
+            content: r[4] || '',
+            precedent: r[5] || ''
         };
     });
 
-    // 빈 쟁점은 위 쟁점에 합치기
+    // 빈 쟁점은 위 쟁점에 합치기 (본문 + 판례 모두)
     const merged = [];
     filled.forEach(row => {
-        if (!row.content && !row.issue && !row.mnemonic) return;
+        if (!row.content && !row.issue && !row.mnemonic && !row.precedent) return;
         if (!row.issue && merged.length > 0) {
             const last = merged[merged.length - 1];
             if (last.chapter === row.chapter && last.division === row.division) {
-                last.content = (last.content || '') + '\n\n' + (row.content || '');
+                if (row.content) {
+                    last.content = (last.content || '') + '\n\n' + row.content;
+                }
+                if (row.precedent) {
+                    last.precedent = (last.precedent || '') + (last.precedent ? '\n\n' : '') + row.precedent;
+                }
                 return;
             }
         }
@@ -545,7 +586,10 @@ function processData(rows) {
             mnemonic: row.mnemonic,
             content: row.content,
             content_html: markdownToHtml(row.content),
-            search_text: stripMarkdown(row.content)
+            search_text: stripMarkdown(row.content),
+            precedent: row.precedent,
+            precedent_html: markdownToHtml(row.precedent),
+            precedent_search: stripMarkdown(row.precedent)
         });
     });
 
@@ -619,7 +663,8 @@ function renderChips() {
 function matchIssue(issue, queryNorm) {
     return norm(issue.issue).includes(queryNorm) ||
            norm(issue.mnemonic).includes(queryNorm) ||
-           norm(issue.search_text).includes(queryNorm);
+           norm(issue.search_text).includes(queryNorm) ||
+           norm(issue.precedent_search).includes(queryNorm);
 }
 
 function renderContent() {
@@ -681,7 +726,7 @@ function renderContent() {
             html += '<div class="issue ' + expanded + '">';
             html += '<div class="issue-head" onclick="toggleIssue(this)">';
             html += '<div class="issue-title-wrap">';
-            html += '<span class="issue-no">' + (i+1) + '</span>';
+            html += '<span class="issue-no">•</span>';
             html += '<span class="issue-title">' + highlightText(issue.issue || ' ', searchQuery) + '</span>';
             html += '</div>';
             html += '<span class="issue-arrow">▼</span>';
@@ -696,6 +741,13 @@ function renderContent() {
                 html += '<div class="mnemonic">' + highlightText(mnemDisplay, searchQuery) + '</div>';
             }
             html += '<div class="content">' + highlightHtml(issue.content_html, searchQuery) + '</div>';
+            // 판례 박스 (있을 때만)
+            if (issue.precedent) {
+                html += '<div class="precedent">';
+                html += '<div class="precedent-label"><span>📌</span> 판례</div>';
+                html += '<div class="precedent-content">' + highlightHtml(issue.precedent_html, searchQuery) + '</div>';
+                html += '</div>';
+            }
             html += '</div>';
             html += '</div>';
         });

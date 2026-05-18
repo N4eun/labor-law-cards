@@ -627,7 +627,7 @@ function processData(rows) {
         };
     });
 
-    // 빈 쟁점은 위 쟁점에 합치기 (본문, 판례, 중요 모두)
+    // 빈 쟁점은 위 쟁점에 합치기 (본문, 두문자, 판례, 중요 모두)
     const merged = [];
     filled.forEach(row => {
         if (!row.content && !row.issue && !row.mnemonic && !row.precedent && !row.important) return;
@@ -636,6 +636,9 @@ function processData(rows) {
             if (last.chapter === row.chapter && last.division === row.division) {
                 if (row.content) {
                     last.content = (last.content || '') + '\n\n' + row.content;
+                }
+                if (row.mnemonic) {
+                    last.mnemonic = (last.mnemonic || '') + (last.mnemonic ? '\n' : '') + row.mnemonic;
                 }
                 if (row.precedent) {
                     last.precedent = (last.precedent || '') + (last.precedent ? '\n\n' : '') + row.precedent;

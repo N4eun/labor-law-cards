@@ -26,6 +26,9 @@
     --precedent-bg: #f3f1ea;
     --precedent-border: #b8b3a4;
     --precedent-text: #4a4a4a;
+    --important-bg: #FAEEDA;
+    --important-text: #854F0B;
+    --important-border: #BA7517;
 }
 @media (prefers-color-scheme: dark) {
     :root {
@@ -44,6 +47,9 @@
         --precedent-bg: #2a2925;
         --precedent-border: #4a4843;
         --precedent-text: #c8c5bd;
+        --important-bg: #3a2e15;
+        --important-text: #e8b85a;
+        --important-border: #b8860b;
     }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -395,6 +401,42 @@ body {
     color: var(--text-secondary);
     border: 1px solid var(--precedent-border);
 }
+.badge-star {
+    background: var(--important-bg);
+    color: var(--important-text);
+    border: 1px solid var(--important-border);
+    padding: 1px 5px;
+    line-height: 1;
+    font-size: 11px;
+}
+
+/* 카드 우측 상단 큰 ⭐중요 배지 */
+.badge-important {
+    position: absolute;
+    top: 8px;
+    right: 36px;
+    background: var(--important-bg);
+    color: var(--important-text);
+    border: 1px solid var(--important-border);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.3px;
+    line-height: 1.3;
+    z-index: 2;
+}
+.division.is-important .division-head > div:first-child {
+    padding-right: 84px;
+}
+
+/* ⭐중요 필터 칩 활성 상태 */
+.chip.chip-important.active {
+    background: var(--important-border);
+    color: white;
+    border-color: var(--important-border);
+    box-shadow: 0 2px 6px rgba(186,117,23,0.25);
+}
 
 /* 상태 (로딩, 에러, 빈) */
 .state {
@@ -539,6 +581,7 @@ const SITE_PASSWORD = '1517';
 const AUTH_KEY = 'nodong_auth_pwd';
 let allData = [];
 let activeChapter = '전체';
+let importantOnly = false;
 let searchQuery = '';
 
 function markdownToHtml(text) {
@@ -565,7 +608,7 @@ function escapeHtml(s) {
 
 function processData(rows) {
     if (rows.length < 1) return [];
-    // 컬럼 위치 기반: [0]=CHAPTER, [1]=구분, [2]=쟁점, [3]=두문자, [4]=내용, [5]=판례
+    // 컬럼 위치 기반: [0]=CHAPTER, [1]=구분, [2]=쟁점, [3]=두문자, [4]=내용, [5]=판례, [6]=⭐중요
     let lastChapter = '';
     let lastDivision = '';
     const filled = rows.map(r => {
@@ -579,14 +622,15 @@ function processData(rows) {
             issue: (r[2] || '').trim(),
             mnemonic: (r[3] || '').trim(),
             content: r[4] || '',
-            precedent: r[5] || ''
+            precedent: r[5] || '',
+            important: (r[6] || '').trim().toUpperCase() === 'O'
         };
     });
 
-    // 빈 쟁점은 위 쟁점에 합치기 (본문 + 판례 모두)
+    // 빈 쟁점은 위 쟁점에 합치기 (본문, 판례, 중요 모두)
     const merged = [];
     filled.forEach(row => {
-        if (!row.content && !row.issue && !row.mnemonic && !row.precedent) return;
+        if (!row.content && !row.issue && !row.mnemonic && !row.precedent && !row.important) return;
         if (!row.issue && merged.length > 0) {
             const last = merged[merged.length - 1];
             if (last.chapter === row.chapter && last.division === row.division) {
@@ -595,6 +639,9 @@ function processData(rows) {
                 }
                 if (row.precedent) {
                     last.precedent = (last.precedent || '') + (last.precedent ? '\n\n' : '') + row.precedent;
+                }
+                if (row.important) {
+                    last.important = true;
                 }
                 return;
             }
@@ -623,11 +670,17 @@ function processData(rows) {
             search_text: stripMarkdown(row.content),
             precedent: row.precedent,
             precedent_html: markdownToHtml(row.precedent),
-            precedent_search: stripMarkdown(row.precedent)
+            precedent_search: stripMarkdown(row.precedent),
+            important: row.important
         });
     });
 
-    return order.map(k => map.get(k));
+    // 카드 단위 중요 판정: 안 쟁점 중 하나라도 중요면 카드도 중요
+    return order.map(k => {
+        const card = map.get(k);
+        card.important = card.issues.some(i => i.important);
+        return card;
+    });
 }
 
 function highlightHtml(html, query) {
@@ -683,13 +736,21 @@ function renderChips() {
         }
     });
     chips.innerHTML = '<span class="chip active" data-ch="전체">전체</span>' +
+        '<span class="chip chip-important" data-type="important">⭐ 중요</span>' +
         order.map(ch => '<span class="chip" data-ch="' + escapeHtml(ch) + '">' + escapeHtml(ch) + '</span>').join('');
     chips.addEventListener('click', e => {
         const chip = e.target.closest('.chip');
         if (!chip) return;
-        chips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        activeChapter = chip.dataset.ch;
+        if (chip.dataset.type === 'important') {
+            // ⭐중요는 토글
+            importantOnly = !importantOnly;
+            chip.classList.toggle('active', importantOnly);
+        } else {
+            // 챕터 칩은 단일 선택
+            chips.querySelectorAll('.chip[data-ch]').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            activeChapter = chip.dataset.ch;
+        }
         renderContent();
     });
 }
@@ -701,10 +762,11 @@ function matchIssue(issue, queryNorm) {
            norm(issue.precedent_search).includes(queryNorm);
 }
 
-function badgesHtml(issue) {
+function badgesHtml(issue, includeImportant) {
     const items = [];
     if (issue.mnemonic) items.push('<span class="badge badge-mnemonic">두</span>');
     if (issue.precedent) items.push('<span class="badge badge-precedent">판</span>');
+    if (includeImportant && issue.important) items.push('<span class="badge badge-star">⭐</span>');
     if (items.length === 0) return '';
     return '<span class="badges">' + items.join('') + '</span>';
 }
@@ -713,6 +775,7 @@ function renderContent() {
     const content = document.getElementById('content');
     const queryNorm = norm(searchQuery);
     const isSearching = queryNorm.length > 0;
+    const forceExpand = isSearching || importantOnly;
 
     let filtered = allData;
     if (activeChapter !== '전체') {
@@ -723,6 +786,13 @@ function renderContent() {
             const matched = card.issues.filter(i => matchIssue(i, queryNorm));
             if (matched.length === 0) return null;
             return Object.assign({}, card, { issues: matched });
+        }).filter(c => c !== null);
+    }
+    if (importantOnly) {
+        filtered = filtered.map(card => {
+            const matched = card.issues.filter(i => i.important);
+            if (matched.length === 0) return null;
+            return Object.assign({}, card, { issues: matched, important: true });
         }).filter(c => c !== null);
     }
 
@@ -750,9 +820,13 @@ function renderContent() {
             html += '</div>';
         }
         const isSingleIssue = card.issues.length === 1;
-        const collapsed = isSearching ? '' : 'collapsed';
+        const collapsed = forceExpand ? '' : 'collapsed';
         const singleClass = isSingleIssue ? 'single-issue' : '';
-        html += '<div class="division ' + collapsed + ' ' + singleClass + '">';
+        const importantClass = card.important ? 'is-important' : '';
+        html += '<div class="division ' + collapsed + ' ' + singleClass + ' ' + importantClass + '">';
+        if (card.important) {
+            html += '<span class="badge-important">⭐ 중요</span>';
+        }
         html += '<div class="division-head" onclick="toggleDivision(this)">';
         html += '<div class="division-name-wrap">';
         html += '<div>';
@@ -761,24 +835,24 @@ function renderContent() {
             html += '<div class="division-count">' + card.issues.length + '개 쟁점</div>';
         }
         html += '</div>';
-        // 쟁점 1개일 때만 division 헤더에 배지 표시 (그 1개 쟁점의 두/판 유무)
+        // 쟁점 1개일 때 division 헤더에 두/판 배지 (별은 위 큰 배지로 표시되니 제외)
         if (isSingleIssue) {
-            html += badgesHtml(card.issues[0]);
+            html += badgesHtml(card.issues[0], false);
         }
         html += '</div>';
         html += '<span class="division-arrow">▶</span>';
         html += '</div>';
         html += '<div class="issues">';
         card.issues.forEach((issue, i) => {
-            const expanded = isSearching ? 'expanded' : '';
+            const expanded = forceExpand ? 'expanded' : '';
             html += '<div class="issue ' + expanded + '">';
             html += '<div class="issue-head" onclick="toggleIssue(this)">';
             html += '<div class="issue-title-wrap">';
             html += '<span class="issue-no">•</span>';
             html += '<span class="issue-title">' + highlightText(issue.issue || ' ', searchQuery) + '</span>';
-            // 쟁점이 여러 개일 때만 각 쟁점 옆에 배지 (single-issue는 division 헤더에 이미 표시)
+            // 쟁점이 여러 개일 때 각 쟁점 옆에 두/판/⭐ 배지
             if (!isSingleIssue) {
-                html += badgesHtml(issue);
+                html += badgesHtml(issue, true);
             }
             html += '</div>';
             html += '<span class="issue-arrow">▼</span>';
@@ -808,7 +882,11 @@ function renderContent() {
     });
 
     if (filtered.length === 0) {
-        html = '<div class="state"><span class="state-icon">🔍</span><div class="state-title">검색 결과가 없습니다</div><div>다른 키워드로 시도해보세요</div></div>';
+        if (importantOnly && !isSearching) {
+            html = '<div class="state"><span class="state-icon">⭐</span><div class="state-title">⭐중요 표시된 항목이 없습니다</div><div>구글시트의 G열에 O를 입력해 중요 표시하세요</div></div>';
+        } else {
+            html = '<div class="state"><span class="state-icon">🔍</span><div class="state-title">검색 결과가 없습니다</div><div>다른 키워드로 시도해보세요</div></div>';
+        }
     }
 
     content.innerHTML = html;
